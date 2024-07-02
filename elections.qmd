@@ -1,0 +1,122 @@
+---
+title: "elections"
+format: html
+editor: source
+---
+
+## Elections européennes 2024
+
+[Résultats des élections européennes du 9 juin 2024](https://www.data.gouv.fr/fr/datasets/resultats-des-elections-europeennes-du-9-juin-2024/#/resources)
+
+```{r}
+
+library(tidyverse)
+library(readxl)
+
+```
+
+```{r}
+#|label: first_integration
+#|include: false
+#|eval: false
+
+resultats <- read_xlsx("data/resultats-definitifs-par-commune.xlsx")
+str(resultats)
+saveRDS(resultats, "data/resultats_ori.RDS")
+
+```
+
+```{r}
+#|label: load_RDS
+
+resultats <- readRDS("data/resultats_ori.RDS")
+
+```
+
+1. Transformation de toutes les colonnes % en valeurs numériques avec séparateur "."
+
+```{r}
+
+df <- resultats |> 
+  mutate(
+    across(.cols = starts_with("%"),
+           ~ gsub(pattern = ",", replacement = ".", x = .x))
+  ) |> 
+  mutate(
+    across(.cols = starts_with("%"),
+           ~ gsub(pattern = "%", replacement = "", x = .x))
+  ) |> 
+  mutate(
+    across(.cols = starts_with("%"),
+           ~ as.numeric(.x))
+  )
+
+```
+
+2. Vérification des colonnes pourcentages avant suppression
+
+  - récupération du nom des colonnes à considérer
+  
+```{r}
+  
+names_pourcentages <- df |> 
+  select(starts_with("%")) |>  
+  names()
+
+```
+
+::: {.callout-note collapse="false"}
+
+Attention la fonction `round(x, digits = 2` renvoie $53,12$ au lieu de $53,13$ lorsque x vaut $53,125$ par exemple
+
+:::
+
+  - "% Votants", "% Abstentions", ...
+  
+```{r}
+
+get_percentages <- function(df, result_col, col_num, col_denum, after_col) {
+  result <- df |> 
+    mutate(.data[[result_col]] := round(100 * (.data[[col_num]]/.data[[col_denum]]), digits = 2)) |> 
+    relocate({{result_col}}, .after = after_col)
+  return(result)
+}
+
+result_col <- "% votants"
+col_num <- "Votants"
+col_denum <- "Inscrits"
+after_col <- "% Votants"
+
+df1 <- get_percentages(df, result_col, col_num, col_denum, after_col)
+
+result_col <- "% abstentions"
+col_num <- "Abstentions"
+col_denum <- "Inscrits"
+after_col <- "% Abstentions"
+
+df2 <- get_percentages(df1, result_col, col_num, col_denum, after_col)
+
+
+
+
+
+```  
+
+
+```{r}
+
+voix <- resultats |> 
+  select(1:18, starts_with("Voix"))
+
+df <- voix |> 
+  pivot_longer(
+    cols = starts_with("Voix"),
+    names_to = "numero",
+    values_to = "voix",
+  ) |> 
+  mutate(numero = gsub(pattern = "Voix ", replacement = "", x = numero))
+    
+```
+
+
+
