@@ -37,7 +37,7 @@ resultats <- readRDS("data/resultats_ori.RDS")
 
 ```{r}
 
-df <- resultats |> 
+tib <- resultats |> 
   mutate(
     across(.cols = starts_with("%"),
            ~ gsub(pattern = ",", replacement = ".", x = .x))
@@ -59,9 +59,10 @@ df <- resultats |>
   
 ```{r}
   
-names_pourcentages <- df |> 
+names_pourcentages <- tib |> 
   select(starts_with("%")) |>  
   names()
+names_pourcentages
 
 ```
 
@@ -71,36 +72,104 @@ Attention la fonction `round(x, digits = 2` renvoie $53,12$ au lieu de $53,13$ l
 
 :::
 
-  - "% Votants", "% Abstentions", ...
+  - calcul des pourcentages globaux
+
+    1. par rapport aux inscrits 
+      
+      - "% Votants", "% Abstentions", "% Exprimés/inscrits", "% Blancs/inscrits", "% Nuls/inscrits"
+    
+    2. par rapport aux votants 
+    
+      - "% Exprimés/votants", "% Blancs/votants", "% Nuls/votants"
   
 ```{r}
 
-get_percentages <- function(df, result_col, col_num, col_denum, after_col) {
-  result <- df |> 
+get_percentages <- function(tib, result_col, col_num, col_denum, after_col) {
+  result <- tib |> 
     mutate(!!result_col := round(100 * (.data[[col_num]]/.data[[col_denum]]), digits = 2)) |>  
     relocate(!!result_col, .after = after_col)
   return(result)
 }
 
-result_col <- "% votants"
-col_num <- "Votants"
+# calcul des pourcentages par rapport aux inscrits
+
 col_denum <- "Inscrits"
-after_col <- "% Votants"
+col_num <- c("Votants", "Abstentions", "Exprimés", "Blancs", "Nuls")
+after_col <- c("% Votants", "% Abstentions", "% Exprimés/inscrits", "% Blancs/inscrits", "% Nuls/inscrits")
+result_col <- str_to_lower(after_col)
 
-df1 <- get_percentages(df, result_col, col_num, col_denum, after_col)
+for (i in 1:5) {
+  
+  tib <- get_percentages(tib, result_col[i], col_num[i], col_denum, after_col[i])
+  
+}
 
-result_col <- "% abstentions"
-col_num <- "Abstentions"
-col_denum <- "Inscrits"
-after_col <- "% Abstentions"
+# calcul des pourcentages par rapport aux votants
 
-df2 <- get_percentages(df1, result_col, col_num, col_denum, after_col)
+col_denum <- "Votants"
+col_num <- c("Exprimés", "Blancs", "Nuls")
+after_col <- c("% Exprimés/votants", "% Blancs/votants", "% Nuls/votants")
+result_col <- str_to_lower(after_col)
 
-
-
-
+for (i in 1:3) {
+  
+  tib <- get_percentages(tib, result_col[i], col_num[i], col_denum, after_col[i])
+  
+}
 
 ```  
+
+  - Calcul des pourcentages par parti
+  
+    1. par rapport aux inscrits 
+    
+      - "% voix/inscrits xx"
+      
+    2. par rapport aux exprimés
+    
+      - "% voix/inscrits xx"
+
+```{r}
+
+
+inscrits <- "Inscrits"
+exprimes <- "Exprimés"
+
+for (i in 1:38) {
+
+  # nom de colonnes existantes servant pour le calcul
+  col_voix <- paste("Voix", i)
+  col_Voix_sur_inscrits <- paste("% Voix/inscrits", i)
+  col_Voix_sur_exprimes <- paste("% Voix/exprimés", i)
+  # nom de colonnes calculées
+  col_voix_sur_inscrits <- paste("% voix/inscrits", i)
+  col_voix_sur_exprimes <- paste("% voix/exprimés", i)
+  # insertion des pourcentages voix/inscrits pour chaque parti
+  tib <- get_percentages(tib, col_voix_sur_inscrits, col_voix, inscrits, col_Voix_sur_inscrits)
+  # insertion des pourcentages voix/exprimés pour chaque parti
+  tib <- get_percentages(tib, col_voix_sur_exprimes, col_voix, exprimes, col_Voix_sur_exprimes)
+
+}
+
+
+```
+
+  - vérification des pourcentages présentés par rapport aux pourcentages recalculés
+  
+```{r}
+
+
+
+
+
+```
+
+
+
+
+
+
+
 
 
 ```{r}
@@ -118,21 +187,4 @@ df <- voix |>
     
 ```
 
-
-```{r}
-
-uber_select <- function(tbl, col) {
-  tbl |>
-    select({{col}})
-}
-
-uber_select(tbl = starwars,
-             col = species)
-
-
-
-
-
-
-```
 
