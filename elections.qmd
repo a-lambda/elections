@@ -77,8 +77,8 @@ Attention la fonction `round(x, digits = 2` renvoie $53,12$ au lieu de $53,13$ l
 
 get_percentages <- function(df, result_col, col_num, col_denum, after_col) {
   result <- df |> 
-    mutate(.data[[result_col]] := round(100 * (.data[[col_num]]/.data[[col_denum]]), digits = 2)) |> 
-    relocate({{result_col}}, .after = after_col)
+    mutate(!!result_col := round(100 * (.data[[col_num]]/.data[[col_denum]]), digits = 2)) |>  
+    relocate(!!result_col, .after = after_col)
   return(result)
 }
 
@@ -119,4 +119,20 @@ df <- voix |>
 ```
 
 
+```{r}
+
+uber_select <- function(tbl, col) {
+  tbl |>
+    select({{col}})
+}
+
+uber_select(tbl = starwars,
+             col = species)
+
+
+
+
+
+
+```
 
