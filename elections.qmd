@@ -35,7 +35,7 @@ resultats <- readRDS("data/resultats_ori.RDS")
 
 ```
 
-1. Transformation de toutes les colonnes % en valeurs numériques avec séparateur "."
+### Transformation de toutes les colonnes % en valeurs numériques avec séparateur "."
 
 ```{r}
 
@@ -55,7 +55,7 @@ tib <- resultats |>
 
 ```
 
-2. Vérification des colonnes pourcentages avant suppression
+### Vérification des colonnes pourcentages avant suppression
 
   - récupération du nom des colonnes à considérer
   
@@ -205,7 +205,7 @@ max(diff_cols)
 
 ```
 
-3. Suppression des colonnes pourcentages et sauvegarde dans un fichier intermédiaire
+### Suppression des colonnes pourcentages et sauvegarde dans un fichier intermédiaire
 
 ```{r}
 
@@ -214,7 +214,7 @@ tib_without_percentages <- tib |>
 
 ```
 
-4. Sélection des données utiles
+### Sélection des données utiles
 
 ```{r}
 
@@ -229,7 +229,7 @@ head(tib_utile)
 
 ```
 
-5. Récupération des données sur les partis
+### Récupération des données sur les partis
 
 ```{r}
 
@@ -246,7 +246,7 @@ head(tib_partis)
 
 ```
 
-6 - Jointure entre les données utiles et les données de parti
+### Jointure entre les données utiles et les données de parti
 
 ```{r}
 
@@ -256,5 +256,5 @@ head(tib_final)
 
 ```
 
-7 - Représentation géographique
+### Représentation géographique
 
