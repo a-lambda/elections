@@ -2,6 +2,8 @@
 title: "elections"
 format: html
 editor: source
+editor_options: 
+  chunk_output_type: console
 ---
 
 ## Elections européennes 2024
@@ -20,9 +22,9 @@ library(readxl)
 #|include: false
 #|eval: false
 
-resultats <- read_xlsx("data/resultats-definitifs-par-commune.xlsx")
-str(resultats)
-saveRDS(resultats, "data/resultats_ori.RDS")
+# resultats <- read_xlsx("data/resultats-definitifs-par-commune.xlsx")
+# str(resultats)
+# saveRDS(resultats, "data/resultats_ori.RDS")
 
 ```
 
@@ -91,12 +93,14 @@ Ce qui en l'occurrence s'avère être le cas pour le nombre de votants dans cert
 
 :::
 
-
 ```{r}
 
 get_percentages <- function(tib, result_col, col_num, col_denum, after_col) {
   result <- tib |> 
-    mutate(!!result_col := round(100 * (.data[[col_num]]/.data[[col_denum]]), digits = 2)) |>  
+    mutate(!!result_col := if_else(
+      .data[[col_num]] != 0,
+      round(100 * (.data[[col_num]]/.data[[col_denum]]), digits = 2),
+      0)) %>%
     relocate(!!result_col, .after = after_col)
   return(result)
 }
@@ -129,6 +133,22 @@ for (i in 1:3) {
 
 ```  
 
+::: {.callout-note collapse="false"}
+
+Le fait d'utiliser |> au lieu de %>% génère le message suivant :
+
+Avis : Using an external vector in selections was deprecated in tidyselect 1.1.0.
+ℹ Please use `all_of()` or `any_of()` instead.
+  # Was:
+  data %>% select(after_col)
+
+  # Now:
+  data %>% select(all_of(after_col))
+
+See <https://tidyselect.r-lib.org/reference/faq-external-vector.html>.
+
+:::
+
   - Calcul des pourcentages par parti
   
     1. par rapport aux inscrits 
@@ -140,7 +160,6 @@ for (i in 1:3) {
       - "% voix/inscrits xx"
 
 ```{r}
-
 
 inscrits <- "Inscrits"
 exprimes <- "Exprimés"
@@ -161,7 +180,6 @@ for (i in 1:38) {
 
 }
 
-
 ```
 
   - vérification des pourcentages présentés par rapport aux pourcentages recalculés
@@ -180,32 +198,63 @@ diff_cols <-
   map2(indices_cols_to_compare,
        indices_calculated_cols,
        \(x1, x2) {sum(tib_col_percentages[x1] - tib_col_percentages[x2])}
-  )
+  ) |> 
+  unlist()
 
+max(diff_cols)
 
 ```
 
-
-
-
-
-
-
-
+3. Suppression des colonnes pourcentages et sauvegarde dans un fichier intermédiaire
 
 ```{r}
 
-voix <- resultats |> 
-  select(1:18, starts_with("Voix"))
+tib_without_percentages <- tib |> 
+  select(!starts_with("%"))
 
-df <- voix |> 
-  pivot_longer(
-    cols = starts_with("Voix"),
-    names_to = "numero",
-    values_to = "voix",
-  ) |> 
-  mutate(numero = gsub(pattern = "Voix ", replacement = "", x = numero))
-    
 ```
 
+4. Sélection des données utiles
+
+```{r}
+
+tib_utile <- tib_without_percentages |>
+   select("Code département":"Nuls", starts_with(c("Voix", "Sièges"))) |> 
+   pivot_longer(
+    cols = starts_with(c("Voix", "Sièges")),
+    names_to = c(".value", "Parti"),
+    names_sep = " "
+  )
+head(tib_utile)
+
+```
+
+5. Récupération des données sur les partis
+
+```{r}
+
+tib_partis <- tib_without_percentages |> 
+  select(matches("[0-9]")) |> 
+  select(!starts_with(c("Voix", "Sièges"))) |> 
+  unique() |> 
+  pivot_longer(
+    cols = everything(),
+    names_to = c(".value", "Parti"),
+    names_pattern = '([a-zà-üA-Z\\s]+) ([0-9]+)'
+  )
+head(tib_partis)
+
+```
+
+6 - Jointure entre les données utiles et les données de parti
+
+```{r}
+
+tib_final <- tib_utile |> 
+  inner_join(tib_partis)
+head(tib_final)
+
+```
+
+7 - Représentation géographique
 
