@@ -1,14 +1,15 @@
 ---
-title: "elections"
+title: "Elections législatives 2024 (1er et second tour)"
 format: html
 editor: source
 editor_options: 
   chunk_output_type: console
 ---
 
-## Elections européennes 2024
+[Résultats des élections législatives du 30 juin 2024](https://www.data.gouv.fr/fr/datasets/elections-legislatives-des-30-juin-et-7-juillet-2024-resultats-definitifs-du-1er-tour/)
 
-[Résultats des élections européennes du 9 juin 2024](https://www.data.gouv.fr/fr/datasets/resultats-des-elections-europeennes-du-9-juin-2024/#/resources)
+[Résultats des élections législatives du 7 juillet 2024](https://www.data.gouv.fr/fr/datasets/elections-legislatives-des-30-juin-et-7-juillet-2024-resultats-definitifs-du-2nd-tour/)
+
 
 ```{r}
 #| label: load_packages
@@ -26,13 +27,22 @@ library(readxl)
 #| echo: true
 #| eval: true
 
-if (!file.exists("data/resultats_ori.RDS")) {
-  resultats <- read_xlsx("data/resultats-definitifs-par-commune.xlsx")
-  saveRDS(resultats, "data/resultats_ori.RDS")
+if (!file.exists("data/legislatives_2024/tour_1/resultats_ori_1.RDS")) {
+  resultats_1 <- read_xlsx("data/legislatives_2024/tour_1/resultats-definitifs-par-communes.xlsx")
+  saveRDS(resultats, "data/legislatives_2024/tour_1/resultats_ori_1.RDS")
 } else {
-  resultats <- readRDS("data/resultats_ori.RDS")
+  resultats_1 <- readRDS("data/legislatives_2024/tour_1/resultats_ori_1.RDS")
 }
-str(resultats, strict.width = "wrap", list.len = 26)
+str(resultats_1, strict.width = "wrap", list.len = 26)
+
+if (!file.exists("data/legislatives_2024/tour_2/resultats_ori_2.RDS")) {
+  resultats_2 <- read_xlsx("data/legislatives_2024/tour_2/resultats-definitifs-par-commune.xlsx")
+  saveRDS(resultats, "data/legislatives_2024/tour_2/resultats_ori_2.RDS")
+} else {
+  resultats_2 <- readRDS("data/legislatives_2024/tour_2/resultats_ori_2.RDS")
+}
+str(resultats_2, strict.width = "wrap", list.len = 26)
+
 ```
 
 ### Transformation de toutes les colonnes % en valeurs numériques avec séparateur "."
@@ -265,4 +275,12 @@ head(tib_final)
 ```
 
 ### Représentation géographique
+
+
+
+
+
+
+
+
 
