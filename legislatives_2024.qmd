@@ -22,26 +22,43 @@ library(readxl)
 
 ### Récupération des données et sauvegarde au formet RDS
 
+::: {.callout-note collapse="false"}
+
+Le paramètre `col_types` de la fonction `read_xlsx` est positionné à "text" car certaines colonnes se retrouvent être considérées comme étant de type "logical" alors qu'elles contiennent du texte comme les colonnes `Elu xxx`  
+
+:::
+
 ```{r}
 #| label: first_integration
 #| echo: true
 #| eval: true
 
-if (!file.exists("data/legislatives_2024/tour_1/resultats_ori_1.RDS")) {
-  resultats_1 <- read_xlsx("data/legislatives_2024/tour_1/resultats-definitifs-par-communes.xlsx")
-  saveRDS(resultats, "data/legislatives_2024/tour_1/resultats_ori_1.RDS")
-} else {
-  resultats_1 <- readRDS("data/legislatives_2024/tour_1/resultats_ori_1.RDS")
+import_raw_data <- function(tour) {
+  default_path = paste(
+    "data", 
+    "legislatives_2024", 
+    paste0("tour_", tour),
+    sep = "/"
+  )
+  RDS_file <- paste(default_path,
+                    paste0("resultats_tour_", tour, ".RDS"),
+                    sep = "/")
+  excel_name_file <- switch(
+    tour,
+    "resultats-definitifs-par-communes.xlsx",
+    "resultats-definitifs-par-commune.xlsx"
+  )
+  excel_file <- paste(default_path, excel_name_file, sep = "/")
+  if (!file.exists(RDS_file)) {
+    resultat <- read_xlsx(excel_file, col_types = "text")
+    saveRDS(resultat, file = RDS_file)
+  } else {
+    resultat <- readRDS(file = RDS_file)
+  }
+  return(resultat)
 }
-str(resultats_1, strict.width = "wrap", list.len = 26)
 
-if (!file.exists("data/legislatives_2024/tour_2/resultats_ori_2.RDS")) {
-  resultats_2 <- read_xlsx("data/legislatives_2024/tour_2/resultats-definitifs-par-commune.xlsx")
-  saveRDS(resultats, "data/legislatives_2024/tour_2/resultats_ori_2.RDS")
-} else {
-  resultats_2 <- readRDS("data/legislatives_2024/tour_2/resultats_ori_2.RDS")
-}
-str(resultats_2, strict.width = "wrap", list.len = 26)
+resultat <- import_raw_data(tour = 1)
 
 ```
 
@@ -49,7 +66,8 @@ str(resultats_2, strict.width = "wrap", list.len = 26)
 
 ```{r}
 
-tib <- resultats |> 
+percentage_columns_to_numeric <- function(df) {
+  tib <- df |> 
   mutate(
     across(.cols = starts_with("%"),
            ~ gsub(pattern = ",", replacement = ".", x = .x))
@@ -62,6 +80,10 @@ tib <- resultats |>
     across(.cols = starts_with("%"),
            ~ as.numeric(.x))
   )
+  return(tib)
+}
+
+tib <- percentage_columns_to_numeric(resultat)
 
 ```
 
@@ -104,6 +126,7 @@ Ce qui en l'occurrence s'avère être le cas pour le nombre de votants dans cert
 :::
 
 ```{r}
+
 get_percentages <- function(tib, result_col, col_num, col_denum, after_col) {
   result <- tib |> 
     mutate(!!result_col := if_else(
@@ -113,14 +136,28 @@ get_percentages <- function(tib, result_col, col_num, col_denum, after_col) {
     relocate(!!result_col, .after = after_col)
   return(result)
 }
+
 ```
 
-- calcul des pourcentages par rapport aux inscrits
+- Transformation préalable des colonnes suivantes au format numérique :
+
+  - "Inscrits", "Votants", "Abstentions", "Exprimés", "Blancs", et "Nuls"
+
+```{r}
+
+colonnes <- c("Inscrits","Votants","Abstentions","Exprimés","Blancs","Nuls")
+
+tib <- tib |> mutate(across(all_of(colonnes), ~ as.numeric(.x)))
+
+```
+
+- calcul des pourcentages généraux par rapport aux inscrits
 
 ```{r}
 
 col_denum <- "Inscrits"
 col_num <- c("Votants", "Abstentions", "Exprimés", "Blancs", "Nuls")
+
 after_col <- c(
   "% Votants", "% Abstentions", 
   "% Exprimés/inscrits", "% Blancs/inscrits", "% Nuls/inscrits"
@@ -132,6 +169,7 @@ for (i in 1:5) {
   tib <- get_percentages(tib, result_col[i], col_num[i], col_denum, after_col[i])
   
 }
+
 ```
 
 - calcul des pourcentages par rapport aux votants
@@ -167,22 +205,36 @@ See <https://tidyselect.r-lib.org/reference/faq-external-vector.html>.
 
 :::
 
-  - Calcul des pourcentages par parti
+- Calcul des pourcentages par candidat
   
-    1. par rapport aux inscrits 
+  1. par rapport aux inscrits 
     
-      - "% voix/inscrits xx"
+    - "% voix/inscrits xx"
       
-    2. par rapport aux exprimés
+  2. par rapport aux exprimés
     
-      - "% voix/inscrits xx"
+    - "% voix/inscrits xx"
+
+- Transformation préalable en nombre des colonnes commençant par "Voix"
+
+```{r}
+
+tib <- tib |> mutate(across(.cols = starts_with("Voix"), ~ as.numeric(.x)))
+
+```
+
 
 ```{r}
 
 inscrits <- "Inscrits"
 exprimes <- "Exprimés"
 
-for (i in 1:38) {
+# le nombre de candidats à traiter est :
+# (total colonnes du fichier initial - 18) / 9
+# 
+n_col <- (ncol(resultat) - 18) / 9
+
+for (i in 1:n_col) {
 
   # nom de colonnes existantes servant pour le calcul
   col_voix <- paste("Voix", i)
@@ -200,7 +252,7 @@ for (i in 1:38) {
 
 ```
 
-  - vérification des pourcentages présentés par rapport aux pourcentages recalculés
+- vérification des pourcentages présentés par rapport aux pourcentages recalculés
   
 ```{r}
 
@@ -215,11 +267,11 @@ indices_calculated_cols <- seq(2, ncol(tib_col_percentages), by = 2)
 diff_cols <-
   map2(indices_cols_to_compare,
        indices_calculated_cols,
-       \(x1, x2) {sum(tib_col_percentages[x1] - tib_col_percentages[x2])}
+       \(x1, x2) {sum(tib_col_percentages[x1] - tib_col_percentages[x2], na.rm = TRUE)}
   ) |> 
   unlist()
 
-max(diff_cols)
+max(diff_cols, na.rm = TRUE)
 
 ```
 
@@ -231,6 +283,10 @@ tib_without_percentages <- tib |>
   select(!starts_with("%"))
 
 ```
+
+# *************************
+# la suite est à construire
+# *************************
 
 ### Sélection des données utiles
 
