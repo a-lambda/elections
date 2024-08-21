@@ -284,24 +284,41 @@ tib_without_percentages <- tib |>
 
 ```
 
-# *************************
-# la suite est à construire
-# *************************
-
 ### Sélection des données utiles
 
 ```{r}
 
+names(tib_without_percentages) <- 
+gsub(
+  names(tib_without_percentages), 
+  pattern = "candidat\\s", 
+  replacement = ""
+)
+
+names(tib_without_percentages) <- 
+gsub(
+  names(tib_without_percentages), 
+  pattern = "Numéro\\s+de\\s+panneau", 
+  replacement = "Numéro_panneau"
+)
+
 tib_utile <- tib_without_percentages |>
-   select("Code département":"Nuls", starts_with(c("Voix", "Sièges"))) |> 
+   select("Code département":"Nuls", starts_with(c("Voix", "Elu", "Nuance", "Nom", "Prénom", "Sexe", "Numéro_panneau"))) |> 
    pivot_longer(
-    cols = starts_with(c("Voix", "Sièges")),
-    names_to = c(".value", "Parti"),
+    cols = starts_with(c("Voix", "Elu", "Nuance", "Nom", "Prénom", "Sexe", "Numéro_panneau")),
+    names_to = c(".value", "Candidat"),
     names_sep = " "
   )
+
 head(tib_utile)
 
 ```
+
+
+# *************************
+# la suite est à construire
+# *************************
+
 
 ### Récupération des données sur les partis
 
