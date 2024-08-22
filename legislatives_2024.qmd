@@ -314,6 +314,21 @@ head(tib_utile)
 
 ```
 
+- Filtrage de l'absence de candidat sur le filtre `!is.na(Numéro_panneau)`
+
+```{r}
+
+tib_final <- tib_utile |> 
+  filter(!is.na(Numéro_panneau))
+
+```
+
+::: {.callout-note collapse="false"}
+
+Pour le premier tour des législtatives 2024 on passe ainsi d'un fichier contenant $204\times 35232=7187328$ (après utilisation de `pivot_longer`) à un fichier contenant $222254$ lignes après élimination des lignes contenant des panneaux inexistants (donc des lignes sans candidat) 
+
+:::
+
 
 # *************************
 # la suite est à construire
