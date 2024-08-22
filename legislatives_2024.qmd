@@ -358,6 +358,19 @@ tib_final |>
 # la suite est à construire
 # *************************
 
+```{r}
+
+tib_final |> 
+  filter(str_to_lower(Elu) == "élu") |> 
+  select(Nom, Prénom, Nuance) |> 
+  group_by(Nuance) |> 
+  summarize(n = n()) |> 
+  arrange(desc(n))
+
+```
+
+
+
 
 
 
