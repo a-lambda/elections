@@ -329,10 +329,38 @@ Pour le premier tour des législtatives 2024 on passe ainsi d'un fichier contena
 
 :::
 
+- comptabilité du nombre des candidats par commune
+
+```{r}
+
+candidats_par_commune <- tib_final |> 
+  group_by(`Code commune`) |> 
+  summarize(n = n()) |> 
+  group_by(n) |> 
+  summarize(total = n())
+
+```
+
+- communes avec au moins 20 candidats 
+
+```{r}
+
+tib_final |> 
+  group_by(`Code commune`, `Libellé commune`) |> 
+  summarize(n = n()) |> 
+  filter(n >= 20) |> 
+  arrange(desc(n))
+
+
+```
 
 # *************************
 # la suite est à construire
 # *************************
+
+
+
+
 
 
 ### Récupération des données sur les partis
