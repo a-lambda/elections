@@ -1,0 +1,158 @@
+---
+title: "Elections législatives 2024 (1er et second tour)"
+format: html
+editor: source
+editor_options: 
+  chunk_output_type: console
+---
+
+[Résultats des élections législatives du 30 juin 2024](https://www.data.gouv.fr/fr/datasets/elections-legislatives-des-30-juin-et-7-juillet-2024-resultats-definitifs-du-1er-tour/)
+
+[Résultats des élections législatives du 7 juillet 2024](https://www.data.gouv.fr/fr/datasets/elections-legislatives-des-30-juin-et-7-juillet-2024-resultats-definitifs-du-2nd-tour/)
+
+
+```{r}
+#| label: load_packages
+#| echo: true 
+#| warning: false
+library(tidyverse)
+library(readxl)
+
+```
+
+### Définitions des chemins et noms de fichiers par défaut (fonction du tour)
+
+```{r}
+
+default_path <- function(tour) {
+  
+  return(paste("data", "legislatives_2024", paste0("tour_", tour), sep = "/"))
+  
+}
+
+excel_file_path <- function(tour) {
+  
+  excel_name_file <- switch(
+    tour,
+    "resultats-definitifs-par-communes.xlsx",
+    "resultats-definitifs-par-commune.xlsx"
+  )
+  excel_file_path <- paste(default_path(tour), excel_name_file, sep = "/")
+  return(excel_file_path)
+  
+}
+
+RDS_base_path <- function(tour) {
+  
+  return(
+    paste(default_path(tour), paste0("base_tour_", tour, ".RDS"), sep = "/")
+  )
+  
+}
+
+```
+
+### Fonction d'import des données excel
+
+::: {.callout-note collapse="false"}
+
+Le paramètre `col_types` de la fonction `read_xlsx` est positionné à "text" car certaines colonnes se retrouvent être considérées comme étant de type "logical" alors qu'elles contiennent du texte comme les colonnes `Elu xxx`  
+
+:::
+
+```{r}
+#| label: first_integration
+#| echo: true
+#| eval: true
+
+import_xlsx <- function(tour) {
+  
+  path <- default_path(tour)
+  if (file.exists(excel_file_path(tour))) {
+    tib <- read_xlsx(excel_file_path(tour), col_types = "text")
+  } else {
+    tib <- NULL
+  }
+  return(tib)
+  
+}
+  
+```
+
+### Fonctions de transformations
+
+- Transformations des `,` en `.` pour toutes les colonnes nommées `%...`
+
+```{r}
+
+replace_coma_with_point <- function(tib) {
+  
+  tib <- tib |> 
+    mutate(
+      across(.cols = starts_with("%"),
+           ~ gsub(pattern = ",", replacement = ".", x = .x))
+    )
+  return(tib)
+  
+}
+
+```
+
+- Transformations des `,` en `.` pour toutes les colonnes nommées `%...`
+
+```{r}
+
+delete_percentage_symbol <- function(tib) {
+  
+  tib <- tib |> 
+    mutate(
+      across(.cols = starts_with("%"),
+           ~ gsub(pattern = "%", replacement = "", x = .x))
+    )
+  return(tib)
+  
+}
+
+```
+
+- Transformation en nombre des données de certaines colonne
+
+```{r}
+
+transform_to_numeric <- function(tib) {
+
+  colonnes <- c("Inscrits","Votants","Abstentions","Exprimés","Blancs","Nuls")
+  tib <- tib |> 
+    mutate(across(.cols = starts_with("%"), ~ as.numeric(.x))) |> 
+    mutate(across(all_of(colonnes), ~ as.numeric(.x))) |> 
+    mutate(across(.cols = starts_with("Voix"), ~ as.numeric(.x)))
+  return(tib)
+  
+}
+
+```
+
+### Chargement, formatage et sauvegarde au format RDS des données excel de base
+
+```{r}
+
+load_data <- function(tour) {
+
+  tib <- import_xlsx(tour)
+  tib <- replace_coma_with_point(tib)
+  tib <- delete_percentage_symbol(tib)
+  tib <- transform_to_numeric(tib)
+  saveRDS(tib, file = RDS_base_path(tour))
+
+}
+
+```
+
+
+```{r}
+
+load_data(tour = 1)
+load_data(tour = 2)
+
+```
+

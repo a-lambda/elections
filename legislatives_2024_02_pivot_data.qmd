@@ -1,0 +1,147 @@
+---
+title: "Elections législatives 2024 (1er et second tour)"
+format: html
+editor: source
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: load_packages
+#| echo: true 
+#| warning: false
+library(tidyverse)
+
+```
+
+### Définitions des chemins et noms de fichiers par défaut (fonction du tour)
+
+```{r}
+
+default_path <- function(tour) {
+  
+  return(paste("data", "legislatives_2024", paste0("tour_", tour), sep = "/"))
+  
+}
+
+RDS_base_path <- function(tour) {
+  
+  return(
+    paste(default_path(tour), paste0("base_tour_", tour, ".RDS"), sep = "/")
+  )
+  
+}
+
+RDS_final_path <- function(tour) {
+  
+    return(
+    paste(default_path(tour), paste0("final_tour_", tour, ".RDS"), sep = "/")
+  )
+  
+}
+
+```
+
+### Mise en forme du fichier final
+
+- Suppression des colonnes pourcentages
+
+```{r}
+
+delete_percentage_columns <- function(tib) {
+  
+  tib <- tib |> 
+    select(!starts_with("%"))
+  return(tib)
+  
+}
+  
+```
+
+### Préparation des colonnes `candidat` avant application de `pivot_longer`
+
+- Renommage des noms de colonnes associées au candidat
+
+```{r}
+
+rename_candidat_column_names <- function(tib) {
+  
+  pattern = "candidat\\s"
+  replacement = ""
+  names(tib) <- 
+    gsub(names(tib), pattern = pattern, replacement = replacement)
+
+  pattern = "Numéro\\s+de\\s+panneau"
+  replacement = "Numéro_panneau"
+  names(tib) <- 
+    gsub(names(tib), pattern = pattern, replacement = replacement)
+  
+  return(tib)
+    
+}
+
+```
+
+- Application du pivot longer pour avoir un candidat par ligne
+
+```{r}
+
+pivot_data <- function(tib) {
+  
+  tib <- tib |>
+    select("Code département":"Nuls", starts_with(c("Voix", "Elu", "Nuance", "Nom", "Prénom", "Sexe", "Numéro_panneau"))) |> 
+    pivot_longer(
+      cols = starts_with(c("Voix", "Elu", "Nuance", "Nom", "Prénom", "Sexe", "Numéro_panneau")),
+      names_to = c(".value", "Candidat"),
+      names_sep = " "
+    )
+  return(tib)
+
+}
+
+```
+
+- Filtrage de l'absence de candidat sur le filtre `!is.na(Numéro_panneau)`
+
+```{r}
+
+delete_lines_without_candidat <- function(tib) {
+  
+  return(tib |> filter(!is.na(Numéro_panneau)))
+
+}
+
+```
+
+- Sauvegarde des fichiers RDS finaux
+
+### Chargement, nettoyage et sauvegarde des données RDS de base
+
+```{r}
+
+dry_data <- function(tour) {
+
+  tib <- readRDS(RDS_base_path(tour))
+  tib <- delete_percentage_columns(tib)
+  tib <- rename_candidat_column_names(tib)
+  tib <- pivot_data(tib)
+  tib <- delete_lines_without_candidat(tib)
+  saveRDS(tib, file = RDS_final_path(tour))
+
+}
+
+```
+
+
+```{r}
+
+dry_data(tour = 1)
+dry_data(tour = 2)
+
+```
+
+::: {.callout-note collapse="false"}
+
+Pour le premier tour des législatives 2024 on passe ainsi d'un fichier contenant $204\times 35232=7187328$ (après utilisation de `pivot_longer`) à un fichier contenant $222254$ lignes après élimination des lignes contenant des panneaux inexistants (donc des lignes sans candidat) 
+
+:::
