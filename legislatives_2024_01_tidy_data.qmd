@@ -45,7 +45,7 @@ excel_file_path <- function(tour) {
 RDS_base_path <- function(tour) {
   
   return(
-    paste(default_path(tour), paste0("base_tour_", tour, ".RDS"), sep = "/")
+    paste(default_path(tour), paste0("legislatives_tour_", tour, ".RDS"), sep = "/")
   )
   
 }
@@ -115,7 +115,7 @@ delete_percentage_symbol <- function(tib) {
 
 ```
 
-- Transformation en nombre des données de certaines colonne
+- Transformation en nombre des données de certaines colonnes
 
 ```{r}
 
@@ -132,16 +132,84 @@ transform_to_numeric <- function(tib) {
 
 ```
 
-### Chargement, formatage et sauvegarde au format RDS des données excel de base
+- Renommage des noms de colonnes
 
 ```{r}
 
-load_data <- function(tour) {
+rename_column_names <- function(tib) {
+  
+  names(tib)[1:4] <- c("code_dep", "lib_dep", "code_com", "lib_com")
+  
+  # on supprime les espaces en trop pour pouvoir appliquer pivot_longer
+  # sur les données relatives à chaque candidat
+
+  pattern = "%\\s"
+  replacement = "%"
+  names(tib) <-
+    gsub(names(tib), pattern = pattern, replacement = replacement)
+
+  pattern = "candidat\\s"
+  replacement = ""
+  names(tib) <- 
+    gsub(names(tib), pattern = pattern, replacement = replacement)
+
+  pattern = "Numéro\\s+de\\s+panneau"
+  replacement = "Numéro_panneau"
+  names(tib) <- 
+    gsub(names(tib), pattern = pattern, replacement = replacement)
+  
+  return(tib)
+    
+}
+
+```
+
+- Application du pivot longer pour avoir un candidat par ligne
+
+```{r}
+
+pivot_data <- function(tib) {
+  
+  tib <- tib |>
+    pivot_longer(
+      cols = starts_with(c(
+        "Numéro_panneau", "Nuance", "Nom", "Prénom", "Sexe",
+        "Voix", "%Voix/inscrits", "%Voix/exprimés", "Elu"
+         )),
+      names_to = c(".value", "Candidat"),
+      names_sep = " " # <- option la plus importante !!!
+    )
+  return(tib)
+
+}
+
+```
+
+- Suppression des lignes sans candidat
+
+```{r}
+
+delete_lines_without_candidat <- function(tib) {
+  
+  return(tib |> filter(!is.na(Numéro_panneau)))
+
+}
+
+```
+
+### Chargement, formatage, traitement et sauvegarde RDS des données excel
+
+```{r}
+
+tidy_data <- function(tour) {
 
   tib <- import_xlsx(tour)
   tib <- replace_coma_with_point(tib)
   tib <- delete_percentage_symbol(tib)
   tib <- transform_to_numeric(tib)
+  tib <- rename_column_names(tib)
+  tib <- pivot_data(tib)
+  tib <- delete_lines_without_candidat(tib)
   saveRDS(tib, file = RDS_base_path(tour))
 
 }
@@ -151,8 +219,13 @@ load_data <- function(tour) {
 
 ```{r}
 
-load_data(tour = 1)
-load_data(tour = 2)
+tidy_data(tour = 1)
+tidy_data(tour = 2)
 
 ```
 
+::: {.callout-note collapse="false"}
+
+Pour le premier tour des législatives 2024 on passe ainsi d'un fichier contenant $204\times 35232=7187328$ (après utilisation de `pivot_longer`) à un fichier contenant $222254$ lignes après élimination des lignes sans candidat. 
+
+:::
