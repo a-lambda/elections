@@ -1,5 +1,5 @@
 ---
-title: "Elections législatives 2024 (1er et second tour)"
+title: "Elections législatives 2024 (1er et second tour) - BV"
 format: html
 editor: source
 editor_options: 
@@ -32,11 +32,7 @@ default_path <- function(tour) {
 
 excel_file_path <- function(tour) {
   
-  excel_name_file <- switch(
-    tour,
-    "resultats-definitifs-par-communes.xlsx",
-    "resultats-definitifs-par-commune.xlsx"
-  )
+  excel_name_file <- "resultats-definitifs-par-bureau-de-vote.xlsx"
   excel_file_path <- paste(default_path(tour), excel_name_file, sep = "/")
   return(excel_file_path)
   
@@ -45,7 +41,7 @@ excel_file_path <- function(tour) {
 RDS_file_path <- function(tour) {
   
   return(
-    paste(default_path(tour), paste0("legislatives_tour_", tour, ".RDS"), sep = "/")
+    paste(default_path(tour), paste0("legislatives_BV_tour_", tour, ".RDS"), sep = "/")
   )
   
 }
@@ -138,7 +134,7 @@ transform_to_numeric <- function(tib) {
 
 rename_column_names <- function(tib) {
   
-  names(tib)[1:4] <- c("code_dep", "lib_dep", "code_com", "lib_com")
+  names(tib)[1:5] <- c("code_dep", "lib_dep", "code_com", "lib_com", "code_BV")
   
   # on supprime les espaces en trop pour pouvoir appliquer pivot_longer
   # sur les données relatives à chaque candidat
@@ -224,8 +220,3 @@ tidy_data(tour = 2)
 
 ```
 
-::: {.callout-note collapse="false"}
-
-Pour le premier tour des législatives 2024 on passe ainsi d'un fichier contenant $204\times 35232=7187328$ (après utilisation de `pivot_longer`) à un fichier contenant $222254$ lignes après élimination des lignes sans candidat. 
-
-:::

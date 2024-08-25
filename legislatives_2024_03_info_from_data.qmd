@@ -1,0 +1,256 @@
+---
+title: "Elections législatives 2024 (1er et second tour)"
+format: html
+editor: source
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: load_packages
+#| echo: true 
+#| warning: false
+library(tidyverse)
+
+```
+
+### Définitions des chemins et noms de fichiers par défaut (fonction du tour)
+
+```{r}
+
+default_path <- function(tour) {
+  
+  return(paste("data", "legislatives_2024", paste0("tour_", tour), sep = "/"))
+  
+}
+
+RDS_file_path <- function(tour) {
+  
+  return(
+    paste(default_path(tour), paste0("legislatives_tour_", tour, ".RDS"), sep = "/")
+  )
+  
+}
+
+RDS_legislatives_file_path <-
+  paste(default_path(tour = 1), "legislatives_2024.RDS", sep = "/")
+
+```
+
+### Agrégation des données des 2 tours dans un même fichier RDS
+
+```{r}
+
+tib_1 <- readRDS(RDS_file_path(tour = 1)) |> 
+  mutate(tour = 1) |> 
+  relocate(tour)
+
+tib_2 <- readRDS(RDS_file_path(tour = 2)) |> 
+  mutate(tour = 2) |> 
+  relocate(tour)
+
+tib <- bind_rows(tib_1, tib_2)
+
+saveRDS(tib, file = RDS_legislatives_file_path)
+
+```
+
+### Nombre de voix total par parti pour chaque tour
+
+```{r}
+
+# A CORRIGER
+
+tib |> 
+  group_by(tour, Nuance) |> 
+  summarize(total_voix = sum(Voix)) |> 
+  arrange(tour, desc(total_voix)) |> 
+  print(n = 40)
+
+```
+
+### Table des personnes
+
+```{r}
+
+tib_personne <- tib |> 
+  select(Nom, Prénom, Sexe, Nuance) |>
+  unique() |> 
+  arrange(Nom, Prénom) 
+
+```
+
+### Recherche des homonymes
+
+```{r}
+
+tib_personne |> 
+  group_by(Nom, Prénom) |> 
+  mutate(n = n()) |> 
+  filter(n > 1) |> 
+  print(n = 120)
+
+```
+
+
+
+
+### Table des députés élus
+
+```{r}
+
+tib_elu <- tib |> 
+  filter(str_to_lower(Elu) == "élu") |> 
+  select(tour, code_dep, Nom, Prénom, Sexe, Nuance) |>
+  unique() |> 
+  arrange(Nom, Prénom) 
+
+```
+
+### Répartition des partis dans l'assemblée
+
+```{r}
+
+tib_elu |> 
+  group_by(Nuance) |> 
+  summarize(n = n()) |> 
+  arrange(desc(n))
+
+```
+
+
+
+### Récupération des données sur les partis
+
+```{r}
+
+tib_partis <- tib_without_percentages |> 
+  select(matches("[0-9]")) |> 
+  select(!starts_with(c("Voix", "Sièges"))) |> 
+  unique() |> 
+  pivot_longer(
+    cols = everything(),
+    names_to = c(".value", "Parti"),
+    names_pattern = '([a-zà-üA-Z\\s]+) ([0-9]+)'
+  )
+head(tib_partis)
+
+```
+
+### Jointure entre les données utiles et les données de parti
+
+```{r}
+
+tib_final <- tib_utile |> 
+  inner_join(tib_partis)
+head(tib_final)
+
+```
+
+### Représentation géographique
+
+```{r}
+
+tib_ref1 <- tib1 |> 
+  mutate(ref = paste(Nom, Prénom)) |> 
+  group_by(ref) |> 
+  mutate(n = n()) |> 
+  select(code_com, lib_com, Nuance, ref, Sexe, n) |> 
+  arrange(ref, code_com)
+
+
+```
+
+
+### Mise en forme du fichier final
+
+- Suppression des colonnes pourcentages
+
+```{r}
+
+delete_percentage_columns <- function(tib) {
+  
+  tib <- tib |> 
+    select(!starts_with("%"))
+  return(tib)
+  
+}
+  
+```
+
+
+
+- Sauvegarde des fichiers RDS finaux
+
+### Chargement, nettoyage et sauvegarde des données RDS de base
+
+```{r}
+
+dry_data <- function(tour) {
+
+  tib <- readRDS(RDS_base_path(tour))
+  tib <- delete_percentage_columns(tib)
+  saveRDS(tib, file = RDS_final_path(tour))
+
+}
+
+```
+
+
+```{r}
+
+dry_data(tour = 1)
+dry_data(tour = 2)
+
+```
+
+- comptabilité du nombre des candidats par commune
+
+```{r}
+
+candidats_par_commune <- tib_final |> 
+  group_by(`Code commune`) |> 
+  summarize(n = n()) |> 
+  group_by(n) |> 
+  summarize(total = n())
+
+```
+
+- communes avec au moins 20 candidats 
+
+```{r}
+
+tib_final |> 
+  group_by(`Code commune`, `Libellé commune`) |> 
+  summarize(n = n()) |> 
+  filter(n >= 20) |> 
+  arrange(desc(n))
+
+
+```
+
+
+```{r}
+
+tib_final |> 
+  filter(str_to_lower(Elu) == "élu") |> 
+  select(Nom, Prénom, Nuance) |> 
+  group_by(Nuance) |> 
+  summarize(n = n()) |> 
+  arrange(desc(n))
+
+```
+
+Les données de tib_final sont à comparer avec celles obtenues par Nicolas Lambert
+(https://gitlab.huma-num.fr/atlas-social-de-la-france/legislatives-2024)
+
+### Représentation géographique
+
+
+
+
+
+
+
+
+

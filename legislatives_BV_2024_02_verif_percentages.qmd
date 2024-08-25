@@ -29,7 +29,7 @@ default_path <- function(tour) {
 RDS_file_path <- function(tour) {
   
   return(
-    paste(default_path(tour), paste0("legislatives_tour_", tour, ".RDS"), sep = "/")
+    paste(default_path(tour), paste0("legislatives_BV_tour_", tour, ".RDS"), sep = "/")
   )
   
 }
