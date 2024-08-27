@@ -1,5 +1,6 @@
 ---
 title: "Elections législatives 2024 (1er et second tour)"
+subtitle: "Import, tidy and aggregate"
 format: html
 editor: source
 editor_options: 
@@ -30,7 +31,7 @@ default_path <- function(tour) {
   
 }
 
-excel_file_path <- function(tour) {
+excel_COM_file_path <- function(tour) {
   
   excel_name_file <- switch(
     tour,
@@ -38,17 +39,41 @@ excel_file_path <- function(tour) {
     "resultats-definitifs-par-commune.xlsx"
   )
   excel_file_path <- paste(default_path(tour), excel_name_file, sep = "/")
+  
   return(excel_file_path)
   
 }
 
-RDS_file_path <- function(tour) {
+excel_BV_file_path <- function(tour) {
+  
+  excel_name_file <- "resultats-definitifs-par-bureau-de-vote.xlsx"
+  excel_file_path <- paste(default_path(tour), excel_name_file, sep = "/")
+  
+  return(excel_file_path)
+  
+}
+
+RDS_COM_file_path <- function(tour) {
   
   return(
-    paste(default_path(tour), paste0("legislatives_tour_", tour, ".RDS"), sep = "/")
+    paste(default_path(tour), paste0("legislatives_COM_tour_", tour, ".RDS"), sep = "/")
   )
   
 }
+
+RDS_BV_file_path <- function(tour) {
+  
+  return(
+    paste(default_path(tour), paste0("legislatives_BV_tour_", tour, ".RDS"), sep = "/")
+  )
+  
+}
+
+RDS_legislatives_COM_path <-
+  paste(default_path(tour = 1), "legislatives_2024_COM.RDS", sep = "/")
+
+RDS_legislatives_BV_path <-
+  paste(default_path(tour = 1), "legislatives_2024_BV.RDS", sep = "/")
 
 ```
 
@@ -60,19 +85,44 @@ Le paramètre `col_types` de la fonction `read_xlsx` est positionné à "text" c
 
 :::
 
+- pour les résultats par communes
+
 ```{r}
 #| label: first_integration
 #| echo: true
 #| eval: true
 
-import_xlsx <- function(tour) {
+import_COM_xlsx <- function(tour) {
   
   path <- default_path(tour)
-  if (file.exists(excel_file_path(tour))) {
-    tib <- read_xlsx(excel_file_path(tour), col_types = "text")
+  if (file.exists(excel_COM_file_path(tour))) {
+    tib <- read_xlsx(excel_COM_file_path(tour), col_types = "text")
   } else {
     tib <- NULL
   }
+  
+  return(tib)
+  
+}
+  
+```
+
+- pour les résultats par bureau de vote
+
+```{r}
+#| label: first_integration
+#| echo: true
+#| eval: true
+
+import_BV_xlsx <- function(tour) {
+  
+  path <- default_path(tour)
+  if (file.exists(excel_BV_file_path(tour))) {
+    tib <- read_xlsx(excel_BV_file_path(tour), col_types = "text")
+  } else {
+    tib <- NULL
+  }
+  
   return(tib)
   
 }
@@ -92,6 +142,7 @@ replace_coma_with_point <- function(tib) {
       across(.cols = starts_with("%"),
            ~ gsub(pattern = ",", replacement = ".", x = .x))
     )
+  
   return(tib)
   
 }
@@ -109,6 +160,7 @@ delete_percentage_symbol <- function(tib) {
       across(.cols = starts_with("%"),
            ~ gsub(pattern = "%", replacement = "", x = .x))
     )
+  
   return(tib)
   
 }
@@ -126,6 +178,7 @@ transform_to_numeric <- function(tib) {
     mutate(across(.cols = starts_with("%"), ~ as.numeric(.x))) |> 
     mutate(across(all_of(colonnes), ~ as.numeric(.x))) |> 
     mutate(across(.cols = starts_with("Voix"), ~ as.numeric(.x)))
+  
   return(tib)
   
 }
@@ -164,6 +217,40 @@ rename_column_names <- function(tib) {
 
 ```
 
+- harmonisation données `code_dep`
+
+```{r}
+
+harmonize_code_dep <- function(tib) {
+  
+  tib <- tib |> 
+    mutate(
+      code_dep = if_else(nchar(code_dep) == 1, paste0("0", code_dep), code_dep)
+    ) 
+  
+  return(tib)
+  
+}
+
+```
+
+- harmonisation données `code_com`
+
+```{r}
+
+harmonize_code_com <- function(tib) {
+  
+  tib <- tib |> 
+    mutate(
+      code_com = if_else(nchar(code_com) == 4, paste0("0", code_com), code_com)
+    ) 
+  
+  return(tib)
+  
+}
+
+```
+
 - Application du pivot longer pour avoir un candidat par ligne
 
 ```{r}
@@ -179,6 +266,7 @@ pivot_data <- function(tib) {
       names_to = c(".value", "Candidat"),
       names_sep = " " # <- option la plus importante !!!
     )
+  
   return(tib)
 
 }
@@ -197,20 +285,61 @@ delete_lines_without_candidat <- function(tib) {
 
 ```
 
+::: {.callout-note collapse="false"}
+
+Pour le premier tour des législatives 2024 on passe ainsi d'un fichier contenant $204\times 35232=7187328$ (après utilisation de `pivot_longer`) à un fichier contenant $222254$ lignes après élimination des lignes sans candidat. 
+
+:::
+
 ### Chargement, formatage, traitement et sauvegarde RDS des données excel
+
+- pour les communes
 
 ```{r}
 
-tidy_data <- function(tour) {
+tidy_data_COM <- function(tour) {
 
-  tib <- import_xlsx(tour)
+  tib <- import_COM_xlsx(tour)
   tib <- replace_coma_with_point(tib)
   tib <- delete_percentage_symbol(tib)
   tib <- transform_to_numeric(tib)
   tib <- rename_column_names(tib)
   tib <- pivot_data(tib)
   tib <- delete_lines_without_candidat(tib)
-  saveRDS(tib, file = RDS_file_path(tour))
+  tib <- harmonize_code_com(tib)
+  tib <- harmonize_code_dep(tib)
+  saveRDS(tib, file = RDS_COM_file_path(tour))
+
+}
+
+```
+
+- pour les bureaux de vote
+
+::: {.callout-note collapse="false"}
+
+- `names(tib)[which(names(tib) == "Code BV")] <- "code_BV"`
+
+effectue un renommage de colonne non pris en charge par la fonction `rename_column_names`
+
+:::
+
+```{r}
+
+tidy_data_BV <- function(tour) {
+
+  tib <- import_BV_xlsx(tour)
+  tib <- replace_coma_with_point(tib)
+  tib <- delete_percentage_symbol(tib)
+  tib <- transform_to_numeric(tib)
+  tib <- rename_column_names(tib)
+  # this line is specific to BV files
+  names(tib)[which(names(tib) == "Code BV")] <- "code_BV"
+  tib <- pivot_data(tib)
+  tib <- delete_lines_without_candidat(tib)
+  tib <- harmonize_code_com(tib)
+  tib <- harmonize_code_dep(tib)
+  saveRDS(tib, file = RDS_BV_file_path(tour))
 
 }
 
@@ -219,13 +348,45 @@ tidy_data <- function(tour) {
 
 ```{r}
 
-tidy_data(tour = 1)
-tidy_data(tour = 2)
+1:2 |> walk(tidy_data_COM)
+1:2 |> walk(tidy_data_BV)
 
 ```
 
-::: {.callout-note collapse="false"}
+### Agrégation des données des 2 tours dans un même fichier RDS
 
-Pour le premier tour des législatives 2024 on passe ainsi d'un fichier contenant $204\times 35232=7187328$ (après utilisation de `pivot_longer`) à un fichier contenant $222254$ lignes après élimination des lignes sans candidat. 
+- pour les communes
 
-:::
+```{r}
+
+tib_1 <- readRDS(RDS_COM_file_path(tour = 1)) |> 
+  mutate(tour = 1) |> 
+  relocate(tour)
+
+tib_2 <- readRDS(RDS_COM_file_path(tour = 2)) |> 
+  mutate(tour = 2) |> 
+  relocate(tour)
+
+tib <- bind_rows(tib_1, tib_2)
+
+saveRDS(tib, file = RDS_legislatives_COM_path)
+
+```
+
+- pour les bureaux de vote
+
+```{r}
+
+tib_1 <- readRDS(RDS_BV_file_path(tour = 1)) |> 
+  mutate(tour = 1) |> 
+  relocate(tour)
+
+tib_2 <- readRDS(RDS_BV_file_path(tour = 2)) |> 
+  mutate(tour = 2) |> 
+  relocate(tour)
+
+tib <- bind_rows(tib_1, tib_2)
+
+saveRDS(tib, file = RDS_legislatives_BV_path)
+
+```

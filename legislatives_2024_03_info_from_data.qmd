@@ -24,34 +24,90 @@ default_path <- function(tour) {
   
 }
 
-RDS_file_path <- function(tour) {
-  
-  return(
-    paste(default_path(tour), paste0("legislatives_tour_", tour, ".RDS"), sep = "/")
-  )
-  
-}
+RDS_legislatives_COM_path <-
+  paste(default_path(tour = 1), "legislatives_2024_COM.RDS", sep = "/")
 
-RDS_legislatives_file_path <-
-  paste(default_path(tour = 1), "legislatives_2024.RDS", sep = "/")
+RDS_legislatives_BV_path <-
+  paste(default_path(tour = 1), "legislatives_2024_BV.RDS", sep = "/")
 
 ```
 
-### Agrégation des données des 2 tours dans un même fichier RDS
+### Chargement des fichiers
 
 ```{r}
 
-tib_1 <- readRDS(RDS_file_path(tour = 1)) |> 
-  mutate(tour = 1) |> 
-  relocate(tour)
+tib_BV <- readRDS(RDS_legislatives_BV_path)
+tib_COM <- readRDS(RDS_legislatives_COM_path)
 
-tib_2 <- readRDS(RDS_file_path(tour = 2)) |> 
-  mutate(tour = 2) |> 
-  relocate(tour)
+```
 
-tib <- bind_rows(tib_1, tib_2)
+### Table des personnes
 
-saveRDS(tib, file = RDS_legislatives_file_path)
+```{r}
+
+get_personne <- function(tib) {
+  
+  tib_personne <- tib |> 
+    select(Nom, Prénom, Sexe) |>
+    unique() |> 
+    arrange(desc(Sexe), Nom, Prénom) 
+
+  return(tib_personne)
+  
+}
+
+```
+
+### Table des nuances par personne
+
+```{r}
+
+get_nuance_personne <- function(tib) {
+  
+  tib_nuance_personne <- tib |> 
+    select(Nom, Prénom, Sexe, Nuance) |>
+    unique() |> 
+    arrange(desc(Sexe), Nom, Prénom, Nuance) 
+
+  return(tib_nuance_personne)
+  
+}
+
+```
+
+
+## A corriger
+
+```{r}
+tib_personne <- get_personne(tib_BV)
+tib_nuance_personne <- get_nuance_personne(tib_BV)
+
+tib_nuance_personne |> 
+  group_by(Nom, Prénom, Sexe) |> 
+  mutate(n = n()) |> 
+  filter(n > 1)
+  inner_join(tib_BV, join_by(Nom, Prénom, Sexe))
+
+```
+
+```{r}
+
+tib_COM |> 
+  filter(Nom == "CHAILLOUX")
+
+```
+
+
+
+### Recherche des homonymes
+
+```{r}
+
+tib_personne |> 
+  group_by(Nom, Prénom) |> 
+  mutate(n = n()) |> 
+  filter(n > 1) |> 
+  print(n = 120)
 
 ```
 
@@ -68,30 +124,6 @@ tib |>
   print(n = 40)
 
 ```
-
-### Table des personnes
-
-```{r}
-
-tib_personne <- tib |> 
-  select(Nom, Prénom, Sexe, Nuance) |>
-  unique() |> 
-  arrange(Nom, Prénom) 
-
-```
-
-### Recherche des homonymes
-
-```{r}
-
-tib_personne |> 
-  group_by(Nom, Prénom) |> 
-  mutate(n = n()) |> 
-  filter(n > 1) |> 
-  print(n = 120)
-
-```
-
 
 
 

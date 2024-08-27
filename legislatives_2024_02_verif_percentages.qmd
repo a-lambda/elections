@@ -1,5 +1,6 @@
 ---
 title: "Elections législatives 2024 (1er et second tour)"
+subtitle: "Vérification pourcentages"
 format: html
 editor: source
 editor_options: 
@@ -26,10 +27,18 @@ default_path <- function(tour) {
   
 }
 
-RDS_file_path <- function(tour) {
+RDS_COM_file_path <- function(tour) {
   
   return(
-    paste(default_path(tour), paste0("legislatives_tour_", tour, ".RDS"), sep = "/")
+    paste(default_path(tour), paste0("legislatives_COM_tour_", tour, ".RDS"), sep = "/")
+  )
+  
+}
+
+RDS_BV_file_path <- function(tour) {
+  
+  return(
+    paste(default_path(tour), paste0("legislatives_BV_tour_", tour, ".RDS"), sep = "/")
   )
   
 }
@@ -222,11 +231,37 @@ get_max_percentage_diff_per_column <- function(tib) {
 
 ### Récapitulatif des opérations vérifications sur les pourcentages
 
+- pour les résultats relatifs aux communes
+
 ```{r}
 
-verif_percentages <- function(tour) {
+verif_percentages_COM <- function(tour) {
   
-    tib <- readRDS(RDS_file_path(tour))
+    tib <- readRDS(RDS_COM_file_path(tour))
+    colnames_with_percentage <- display_colnames_with_percentage(tib)
+    tib <- recalculate_general_per_inscrits(tib)
+    tib <- recalculate_general_per_votants(tib)
+    tib <- recalculate_candidat_per_inscrits(tib)
+    tib <- recalculate_candidat_per_exprimes(tib)
+    max_percentage_diff <- get_max_percentage_diff_per_column(tib)
+    return(
+      tibble(
+        colnames = colnames_with_percentage,
+        diff_max = max_percentage_diff
+      )
+    )
+
+}
+
+```
+
+- pour les résultats relatifs aux bureaux de vote
+
+```{r}
+
+verif_percentages_BV <- function(tour) {
+  
+    tib <- readRDS(RDS_BV_file_path(tour))
     colnames_with_percentage <- display_colnames_with_percentage(tib)
     tib <- recalculate_general_per_inscrits(tib)
     tib <- recalculate_general_per_votants(tib)
@@ -246,8 +281,8 @@ verif_percentages <- function(tour) {
 
 ```{r}
 
-verif_percentages(tour = 1)
-verif_percentages(tour = 2)
+1:2 |>  walk(verif_percentages_COM)
+1:2 |>  walk(verif_percentages_BV)
 
 ```
 
