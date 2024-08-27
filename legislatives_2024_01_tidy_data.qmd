@@ -88,7 +88,7 @@ Le paramètre `col_types` de la fonction `read_xlsx` est positionné à "text" c
 - pour les résultats par communes
 
 ```{r}
-#| label: first_integration
+#| label: first_integration_COM
 #| echo: true
 #| eval: true
 
@@ -110,7 +110,7 @@ import_COM_xlsx <- function(tour) {
 - pour les résultats par bureau de vote
 
 ```{r}
-#| label: first_integration
+#| label: first_integration_BV
 #| echo: true
 #| eval: true
 

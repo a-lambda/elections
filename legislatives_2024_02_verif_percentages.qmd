@@ -281,8 +281,8 @@ verif_percentages_BV <- function(tour) {
 
 ```{r}
 
-1:2 |>  walk(verif_percentages_COM)
-1:2 |>  walk(verif_percentages_BV)
+1:2 |>  map(verif_percentages_COM)
+1:2 |>  map(verif_percentages_BV)
 
 ```
 

@@ -1,0 +1,364 @@
+---
+title: "Elections législatives 2024 (1er et second tour)"
+subtitle: Création d'un fichier contour communes (OSM) - 2022
+format: html
+editor: source
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: load_packages
+#| echo: true 
+#| warning: false
+library(tidyverse)
+library(sf)
+
+```
+
+### Découpage administratif communal français issu d'OpenStreetMap (2022)
+
+https://www.data.gouv.fr/fr/datasets/decoupage-administratif-communal-francais-issu-d-openstreetmap/
+
+- champs d'origine :
+ 
+  - insee: code INSEE à 5 caractères de la commune
+  - nom: nom de la commune
+  - wikipedia: entrée wikipédia (code langue suivi du nom de l'article)
+  - la surface en ha de la commune
+
+```{r}
+
+limites_communes <- st_read("data/communes-20220101.shp")
+saveRDS(limites_communes, file = "data/limites_communes_2022.RDS")
+
+# limitation aux communes métropolitaines
+
+limites_communes_metropole <- limites_communes |> 
+  filter(str_sub(insee, 1, 2) != "97") |> 
+  select(insee, nom)
+
+#contour_geo_2154 <- st_transform(contours_geo, crs = st_crs("EPSG:2154"))
+
+```
+
+### Définitions des chemins et noms de fichiers par défaut (fonction du tour)
+
+```{r}
+
+default_path <- function(tour) {
+  
+  return(paste("data", "legislatives_2024", paste0("tour_", tour), sep = "/"))
+  
+}
+
+RDS_legislatives_COM_path <-
+  paste(default_path(tour = 1), "legislatives_2024_COM.RDS", sep = "/")
+
+RDS_legislatives_BV_path <-
+  paste(default_path(tour = 1), "legislatives_2024_BV.RDS", sep = "/")
+
+```
+
+### Chargement des fichiers
+
+```{r}
+
+tib_BV <- readRDS(RDS_legislatives_BV_path)
+tib_COM <- readRDS(RDS_legislatives_COM_path)
+
+```
+
+- Table des communes
+
+```{r}
+
+tib_communes <- tib_COM |> 
+  select(code_com, lib_com) |> 
+  distinct()
+
+```
+
+- Pourcentage de votants par commune
+
+```{r}
+
+tib_votants <- tib_COM |>
+  select(tour, code_com, `%Votants`) |> 
+  distinct()
+
+tib_votants_tour_1 <- tib_votants |> 
+  filter(tour == 1)
+
+tib_votants_tour_2 <- tib_votants |> 
+  filter(tour == 2)
+
+```
+
+- inner join with 
+
+```{r}
+
+data <- tib_votants_tour_1 |> 
+  inner_join(limites_communes_metropole, join_by(code_com == insee)) |> 
+  select(`%Votants`, geometry)
+
+# 34796 communes sur 35232
+
+```
+
+- le
+
+```{r}
+ggplot() +
+      geom_sf(data = data, colour = "red", linewidth = 0.05, fill = "red") +
+      geom_sf(data = limites_communes_metropole, colour = "black", linewidth = 0.05, fill = "transparent")
+```
+
+
+
+### Table des personnes
+
+```{r}
+
+get_personne <- function(tib) {
+  
+  tib_personne <- tib |> 
+    select(Nom, Prénom, Sexe) |>
+    unique() |> 
+    arrange(desc(Sexe), Nom, Prénom) 
+
+  return(tib_personne)
+  
+}
+
+```
+
+### Table des nuances par personne
+
+```{r}
+
+get_nuance_personne <- function(tib) {
+  
+  tib_nuance_personne <- tib |> 
+    select(Nom, Prénom, Sexe, Nuance) |>
+    unique() |> 
+    arrange(desc(Sexe), Nom, Prénom, Nuance) 
+
+  return(tib_nuance_personne)
+  
+}
+
+```
+
+
+## A corriger
+
+```{r}
+tib_personne <- get_personne(tib_BV)
+tib_nuance_personne <- get_nuance_personne(tib_BV)
+
+tib_nuance_personne |> 
+  group_by(Nom, Prénom, Sexe) |> 
+  mutate(n = n()) |> 
+  filter(n > 1)
+  inner_join(tib_BV, join_by(Nom, Prénom, Sexe))
+
+```
+
+```{r}
+
+tib_COM |> 
+  filter(Nom == "CHAILLOUX")
+
+```
+
+
+
+### Recherche des homonymes
+
+```{r}
+
+tib_personne |> 
+  group_by(Nom, Prénom) |> 
+  mutate(n = n()) |> 
+  filter(n > 1) |> 
+  print(n = 120)
+
+```
+
+### Nombre de voix total par parti pour chaque tour
+
+```{r}
+
+# A CORRIGER
+
+tib |> 
+  group_by(tour, Nuance) |> 
+  summarize(total_voix = sum(Voix)) |> 
+  arrange(tour, desc(total_voix)) |> 
+  print(n = 40)
+
+```
+
+
+
+### Table des députés élus
+
+```{r}
+
+tib_elu <- tib |> 
+  filter(str_to_lower(Elu) == "élu") |> 
+  select(tour, code_dep, Nom, Prénom, Sexe, Nuance) |>
+  unique() |> 
+  arrange(Nom, Prénom) 
+
+```
+
+### Répartition des partis dans l'assemblée
+
+```{r}
+
+tib_elu |> 
+  group_by(Nuance) |> 
+  summarize(n = n()) |> 
+  arrange(desc(n))
+
+```
+
+
+
+### Récupération des données sur les partis
+
+```{r}
+
+tib_partis <- tib_without_percentages |> 
+  select(matches("[0-9]")) |> 
+  select(!starts_with(c("Voix", "Sièges"))) |> 
+  unique() |> 
+  pivot_longer(
+    cols = everything(),
+    names_to = c(".value", "Parti"),
+    names_pattern = '([a-zà-üA-Z\\s]+) ([0-9]+)'
+  )
+head(tib_partis)
+
+```
+
+### Jointure entre les données utiles et les données de parti
+
+```{r}
+
+tib_final <- tib_utile |> 
+  inner_join(tib_partis)
+head(tib_final)
+
+```
+
+### Représentation géographique
+
+```{r}
+
+tib_ref1 <- tib1 |> 
+  mutate(ref = paste(Nom, Prénom)) |> 
+  group_by(ref) |> 
+  mutate(n = n()) |> 
+  select(code_com, lib_com, Nuance, ref, Sexe, n) |> 
+  arrange(ref, code_com)
+
+
+```
+
+
+### Mise en forme du fichier final
+
+- Suppression des colonnes pourcentages
+
+```{r}
+
+delete_percentage_columns <- function(tib) {
+  
+  tib <- tib |> 
+    select(!starts_with("%"))
+  return(tib)
+  
+}
+  
+```
+
+
+
+- Sauvegarde des fichiers RDS finaux
+
+### Chargement, nettoyage et sauvegarde des données RDS de base
+
+```{r}
+
+dry_data <- function(tour) {
+
+  tib <- readRDS(RDS_base_path(tour))
+  tib <- delete_percentage_columns(tib)
+  saveRDS(tib, file = RDS_final_path(tour))
+
+}
+
+```
+
+
+```{r}
+
+dry_data(tour = 1)
+dry_data(tour = 2)
+
+```
+
+- comptabilité du nombre des candidats par commune
+
+```{r}
+
+candidats_par_commune <- tib_final |> 
+  group_by(`Code commune`) |> 
+  summarize(n = n()) |> 
+  group_by(n) |> 
+  summarize(total = n())
+
+```
+
+- communes avec au moins 20 candidats 
+
+```{r}
+
+tib_final |> 
+  group_by(`Code commune`, `Libellé commune`) |> 
+  summarize(n = n()) |> 
+  filter(n >= 20) |> 
+  arrange(desc(n))
+
+
+```
+
+
+```{r}
+
+tib_final |> 
+  filter(str_to_lower(Elu) == "élu") |> 
+  select(Nom, Prénom, Nuance) |> 
+  group_by(Nuance) |> 
+  summarize(n = n()) |> 
+  arrange(desc(n))
+
+```
+
+Les données de tib_final sont à comparer avec celles obtenues par Nicolas Lambert
+(https://gitlab.huma-num.fr/atlas-social-de-la-france/legislatives-2024)
+
+### Représentation géographique
+
+
+
+
+
+
+
+
+
