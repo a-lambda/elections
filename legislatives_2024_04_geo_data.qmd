@@ -13,6 +13,7 @@ editor_options:
 #| warning: false
 library(tidyverse)
 library(sf)
+library(mapsf)
 
 ```
 
@@ -29,14 +30,23 @@ https://www.data.gouv.fr/fr/datasets/decoupage-administratif-communal-francais-i
 
 ```{r}
 
-limites_communes <- st_read("data/communes-20220101.shp")
-saveRDS(limites_communes, file = "data/limites_communes_2022.RDS")
+RDS_limites_path <- "data/limites_communes_2022.RDS"
+
+if (file.exists(RDS_limites_path)) {
+  limites_communes <- readRDS(RDS_limites_path)
+} else {
+  limites_communes <- st_read("data/communes-20220101.shp")
+  saveRDS(limites_communes, file = "data/limites_communes_2022.RDS")
+}
 
 # limitation aux communes métropolitaines
 
 limites_communes_metropole <- limites_communes |> 
   filter(str_sub(insee, 1, 2) != "97") |> 
   select(insee, nom)
+
+limites_communes_59 <- limites_communes |> 
+  filter(str_sub(insee, 1, 2) == "59")
 
 #contour_geo_2154 <- st_transform(contours_geo, crs = st_crs("EPSG:2154"))
 
@@ -99,13 +109,77 @@ tib_votants_tour_2 <- tib_votants |>
 
 ```{r}
 
-data <- tib_votants_tour_1 |> 
-  inner_join(limites_communes_metropole, join_by(code_com == insee)) |> 
-  select(`%Votants`, geometry)
-
-# 34796 communes sur 35232
+data_59 <- limites_communes_59 |> 
+  inner_join(tib_votants_tour_1, join_by(insee == code_com)) |> 
+  mutate(percent_votants = `%Votants`)
 
 ```
+
+```{r}
+
+mf_theme("iceberg")
+# plot a shadow
+mf_shadow(data_59)
+# plot municipalities
+mf_map(data_59, type = "base", add = TRUE)
+# layout
+mf_layout(
+  title = "Département du Nord",
+  credits = paste0(
+    "Sources: OSM, 2022\n",
+    "mapsf ",
+    packageVersion("mapsf")
+  )
+)
+
+```
+
+
+
+```{r}
+
+mf_theme("darkula")
+# plot a shadow
+mf_shadow(data_59)
+# plot municipalities
+mf_map(data_59, add = TRUE)
+mf_map(
+  x = data_59,
+  var = "percent_votants",
+  type = "prop",
+  inches = 0.1,
+  col = "brown4",
+  leg_pos = "topright",
+  leg_adj = c(0, -2),
+  leg_title = "% Votants"
+)
+# layout
+mf_layout(
+  title = "% Votants au 1er tour des législatives 2024",
+  credits = paste0(
+    "Sources: OSM, 2022\n",
+    "mapsf ",
+    packageVersion("mapsf")
+  )
+)
+
+```
+
+
+
+
+```{r}
+
+library(leaflet)
+m <- leaflet(limites_communes_metropole) |> 
+  addTiles() |> 
+  addPolygons()
+
+m
+
+```
+
+
 
 - le
 
