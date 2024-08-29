@@ -105,6 +105,29 @@ tib_votants_tour_2 <- tib_votants |>
 
 ```
 
+- pourcentages Votants/exprimés et Votants/inscrits pour chaque nuance
+
+```{r}
+
+get_votants_nuances <- function(nuance, tour, code_dep) {
+  tib_nuance <- tib_COM |>
+    filter(Nuance == nuance & tour == {{tour}} & code_dep == {{code_dep}}) |> 
+    select(tour, Nuance, code_com, `%Voix/inscrits`, `%Voix/exprimes`) |> 
+    mutate(
+      percent_nuance_inscrits = `%Voix/inscrits`,
+      percent_nuance_exprimes = `%Voix/exprimes`)
+  return(tib_nuance)
+}
+
+tib_UG <- get_votants_nuances(nuance = "UG", tour = 1, code_dep = "59")
+
+```
+
+
+
+
+
+
 - inner join with 
 
 ```{r}
@@ -114,6 +137,26 @@ data_59 <- limites_communes_59 |>
   mutate(percent_votants = `%Votants`)
 
 ```
+
+```{r}
+
+data_59 <- limites_communes_59 |> 
+  inner_join(tib_votants_tour_1, join_by(insee == code_com)) |> 
+  mutate(percent_votants = `%Votants`)
+
+
+
+```
+
+```{r}
+
+data_59_UG <- limites_communes_59 |> 
+  inner_join(tib_UG, join_by(insee == code_com))
+
+```
+
+
+
 
 ```{r}
 
@@ -144,8 +187,8 @@ mf_shadow(data_59)
 # plot municipalities
 mf_map(data_59, add = TRUE)
 mf_map(
-  x = data_59,
-  var = "percent_votants",
+  x = data_59_UG,
+  var = "percent_nuance_inscrits",
   type = "prop",
   inches = 0.1,
   col = "brown4",
@@ -166,6 +209,34 @@ mf_layout(
 ```
 
 
+```{r}
+
+mf_theme("darkula")
+# plot a shadow
+mf_shadow(data_59)
+# plot municipalities
+mf_map(data_59, add = TRUE)
+mf_map(
+  x = data_59,
+  var = "percent_votants",
+  type = "prop",
+  inches = 0.1,
+  col = "brown4",
+  leg_pos = "topright",
+  leg_adj = c(0, -2),
+  leg_title = "% Votants"
+)
+# layout
+mf_layout(
+  title = "% Votants au 1er tour des législatives 2024",
+  credits = paste0(
+    "Sources: OSM, 2022\n",
+    "mapsf ",
+    packageVersion("mapsf")
+  )
+)
+
+```
 
 
 ```{r}
