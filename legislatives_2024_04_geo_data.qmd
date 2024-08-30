@@ -112,10 +112,10 @@ tib_votants_tour_2 <- tib_votants |>
 get_votants_nuances <- function(nuance, tour, code_dep) {
   tib_nuance <- tib_COM |>
     filter(Nuance == nuance & tour == {{tour}} & code_dep == {{code_dep}}) |> 
-    select(tour, Nuance, code_com, `%Voix/inscrits`, `%Voix/exprimes`) |> 
+    select(tour, Nuance, code_com, `%Voix/inscrits`, `%Voix/exprimés`) |> 
     mutate(
       percent_nuance_inscrits = `%Voix/inscrits`,
-      percent_nuance_exprimes = `%Voix/exprimes`)
+      percent_nuance_exprimes = `%Voix/exprimés`)
   return(tib_nuance)
 }
 
